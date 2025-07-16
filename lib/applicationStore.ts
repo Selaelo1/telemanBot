@@ -1,11 +1,27 @@
 import { Application } from '@/types/application';
 
-// In-memory store for demo purposes
-// In production, use a proper database
 class ApplicationStore {
+  private static instance: ApplicationStore;
   private applications: Application[] = [];
 
+  private constructor() {}
+
+  public static getInstance(): ApplicationStore {
+    if (!ApplicationStore.instance) {
+      ApplicationStore.instance = new ApplicationStore();
+    }
+    return ApplicationStore.instance;
+  }
+
   getAll(): Application[] {
+    console.log('=== GETTING ALL APPLICATIONS ===');
+    console.log('Current applications:', this.applications.map(app => ({
+      id: app.id,
+      firstName: app.firstName,
+      lastName: app.lastName,
+      status: app.status,
+      submittedAt: app.submittedAt
+    })));
     return this.applications.sort((a, b) => 
       new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
     );
@@ -17,8 +33,6 @@ class ApplicationStore {
 
   create(application: Omit<Application, 'id' | 'submittedAt' | 'status'>): Application {
     console.log('=== CREATING APPLICATION ===');
-    console.log('Input data:', application);
-    
     const newApplication: Application = {
       ...application,
       id: Date.now().toString(),
@@ -26,11 +40,9 @@ class ApplicationStore {
       submittedAt: new Date(),
     };
 
-    console.log('New application object:', newApplication);
     this.applications.push(newApplication);
-    console.log('Total applications after push:', this.applications.length);
-    console.log('All applications:', this.applications.map(app => ({ id: app.id, firstName: app.firstName, status: app.status })));
-    
+    console.log('Application created:', newApplication);
+    console.log('Total applications now:', this.applications.length);
     return newApplication;
   }
 
@@ -38,13 +50,15 @@ class ApplicationStore {
     const index = this.applications.findIndex(app => app.id === id);
     if (index === -1) return null;
 
-    this.applications[index] = {
+    const updatedApp = {
       ...this.applications[index],
       ...updates,
-      processedAt: new Date(),
+      processedAt: updates.status ? new Date() : this.applications[index].processedAt,
     };
 
-    return this.applications[index];
+    this.applications[index] = updatedApp;
+    console.log('Application updated:', updatedApp);
+    return updatedApp;
   }
 
   getByTelegramId(telegramId: string): Application | undefined {
@@ -64,4 +78,4 @@ class ApplicationStore {
   }
 }
 
-export const applicationStore = new ApplicationStore();
+export const applicationStore = ApplicationStore.getInstance();
