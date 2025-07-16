@@ -34,17 +34,40 @@ export default function DashboardPage() {
     declined: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
   const fetchApplications = async () => {
     try {
       console.log("=== DASHBOARD: FETCHING APPLICATIONS ===");
-      const response = await fetch("/api/applications");
+      const startTime = performance.now();
+
+      const response = await fetch("/api/applications", {
+        cache: "no-store", // Ensure fresh data
+      });
+
+      const endTime = performance.now();
+      console.log(`Fetch took ${(endTime - startTime).toFixed(2)}ms`);
       console.log("Response status:", response.status);
-      if (!response.ok) throw new Error("Failed to fetch applications");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log("Received applications data:", data);
+      console.log("Received applications:", data.length);
+
+      if (data.length > 0) {
+        console.log("Sample application:", {
+          id: data[0].id,
+          firstName: data[0].firstName,
+          status: data[0].status,
+          submittedAt: data[0].submittedAt,
+        });
+      }
+
       setApplications(data);
+      return data;
     } catch (error) {
       console.error("=== DASHBOARD: ERROR FETCHING APPLICATIONS ===", error);
       toast({
@@ -52,17 +75,36 @@ export default function DashboardPage() {
         description: "Failed to fetch applications",
         variant: "destructive",
       });
+      throw error;
     }
   };
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/stats");
-      if (!response.ok) throw new Error("Failed to fetch stats");
+      console.log("=== DASHBOARD: FETCHING STATS ===");
+      const response = await fetch("/api/stats", {
+        cache: "no-store", // Ensure fresh data
+      });
+
+      console.log("Stats response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log("Received stats:", data);
+
       setStats(data);
+      return data;
     } catch (error) {
       console.error("Error fetching stats:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch statistics",
+        variant: "destructive",
+      });
+      throw error;
     }
   };
 
@@ -72,6 +114,7 @@ export default function DashboardPage() {
     adminNotes?: string
   ) => {
     try {
+      console.log(`=== UPDATING APPLICATION ${id} TO ${status} ===`);
       const response = await fetch(`/api/applications/${id}`, {
         method: "PATCH",
         headers: {
@@ -80,14 +123,18 @@ export default function DashboardPage() {
         body: JSON.stringify({ status, adminNotes }),
       });
 
-      if (!response.ok) throw new Error("Failed to update application");
+      if (!response.ok) {
+        throw new Error("Failed to update application");
+      }
 
       const updatedApplication = await response.json();
+      console.log("Updated application:", updatedApplication);
 
       setApplications((apps) =>
         apps.map((app) => (app.id === id ? updatedApplication : app))
       );
 
+      // Refresh stats after update
       await fetchStats();
 
       toast({
@@ -105,15 +152,32 @@ export default function DashboardPage() {
   };
 
   const handleRefresh = async () => {
-    setIsLoading(true);
-    await Promise.all([fetchApplications(), fetchStats()]);
-    setIsLoading(false);
+    try {
+      setIsRefreshing(true);
+      console.log("=== MANUAL REFRESH INITIATED ===");
+      await Promise.all([fetchApplications(), fetchStats()]);
+      toast({
+        title: "Success",
+        description: "Data refreshed successfully",
+      });
+    } catch (error) {
+      console.error("Error during refresh:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([fetchApplications(), fetchStats()]);
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        console.log("=== INITIAL DATA LOAD ===");
+        await Promise.all([fetchApplications(), fetchStats()]);
+      } catch (error) {
+        console.error("Error during initial load:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -152,10 +216,10 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isLoading}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>
