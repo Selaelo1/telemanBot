@@ -14,9 +14,9 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Webhook received:', new Date().toISOString());
+    console.log('=== WEBHOOK RECEIVED ===', new Date().toISOString());
     const body: TelegramUpdate = await request.json();
-    console.log('Telegram update:', JSON.stringify(body, null, 2));
+    console.log('Full Telegram update:', JSON.stringify(body, null, 2));
     
     if (!body.message || !body.message.text) {
       console.log('No message or text found');
@@ -30,11 +30,20 @@ export async function POST(request: NextRequest) {
     const username = message.from.username;
     const messageText = message.text.trim();
 
+    console.log('Processing message from user:', {
+      userId,
+      firstName,
+      username,
+      messageText,
+      chatId
+    });
+
     // Handle /start command
     if (messageText === '/start') {
       // Check if user already has a pending application
       const existingApplication = applicationStore.getByTelegramId(userId);
       if (existingApplication && existingApplication.status === 'pending') {
+        console.log('User already has pending application:', existingApplication.id);
         await sendTelegramMessage(
           chatId, 
           `📋 You already have a pending application submitted on ${existingApplication.submittedAt.toLocaleDateString()}. You will receive a response within 48 hours.`
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Start new application process
+      console.log('Starting new application process for user:', userId);
       sessionStore.createSession(userId);
       await sendTelegramMessage(chatId, generateWelcomeMessage());
       return NextResponse.json({ success: true });
@@ -50,14 +60,19 @@ export async function POST(request: NextRequest) {
 
     // Get or create session
     let session = sessionStore.getSession(userId);
+    console.log('Current session:', session);
+    
     if (!session) {
       // If no session exists, start the application process
+      console.log('No session found, creating new session');
       session = sessionStore.createSession(userId);
       await sendTelegramMessage(chatId, generateWelcomeMessage());
       return NextResponse.json({ success: true });
     }
 
     // Process based on current step
+    console.log('Processing step:', session.step, 'with message:', messageText);
+    
     switch (session.step) {
       case 'name':
         if (messageText.length < 2) {
@@ -66,6 +81,7 @@ export async function POST(request: NextRequest) {
         }
         
         session.data.firstName = messageText;
+        console.log('Saved firstName:', messageText);
         sessionStore.updateSession(userId, { 
           step: 'surname', 
           data: session.data 
@@ -80,6 +96,7 @@ export async function POST(request: NextRequest) {
         }
         
         session.data.lastName = messageText;
+        console.log('Saved lastName:', messageText);
         sessionStore.updateSession(userId, { 
           step: 'age', 
           data: session.data 
@@ -94,6 +111,7 @@ export async function POST(request: NextRequest) {
         }
         
         session.data.age = parseInt(messageText);
+        console.log('Saved age:', parseInt(messageText));
         sessionStore.updateSession(userId, { 
           step: 'dob', 
           data: session.data 
@@ -108,6 +126,7 @@ export async function POST(request: NextRequest) {
         }
         
         session.data.dateOfBirth = messageText;
+        console.log('Saved dateOfBirth:', messageText);
         sessionStore.updateSession(userId, { 
           step: 'email', 
           data: session.data 
@@ -122,8 +141,11 @@ export async function POST(request: NextRequest) {
         }
         
         session.data.email = messageText;
+        console.log('Saved email:', messageText);
         
         // Create application
+        console.log('Creating application with data:', session.data);
+        
         const application = applicationStore.create({
           telegramId: userId,
           username: username || '',
@@ -134,13 +156,21 @@ export async function POST(request: NextRequest) {
           email: session.data.email!,
         });
 
+        console.log('Application created successfully:', {
+          id: application.id,
+          telegramId: application.telegramId,
+          firstName: application.firstName,
+          lastName: application.lastName,
+          status: application.status
+        });
+
         // Send confirmation to user
         await sendTelegramMessage(chatId, generateApplicationSummary(session.data));
 
         // Clean up session
         sessionStore.deleteSession(userId);
+        console.log('Session cleaned up for user:', userId);
 
-        console.log('New application created:', application);
         break;
 
       default:
@@ -149,9 +179,11 @@ export async function POST(request: NextRequest) {
         break;
     }
     
+    console.log('=== WEBHOOK PROCESSED SUCCESSFULLY ===');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('=== WEBHOOK ERROR ===', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
