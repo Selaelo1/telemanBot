@@ -1,21 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { applicationStore } from '@/lib/applicationStore';
 
 export async function GET() {
   try {
-    console.log('=== FETCHING APPLICATIONS ===');
+    console.log('=== FETCHING ALL APPLICATIONS ===');
     const applications = applicationStore.getAll();
-    console.log('Found applications:', applications.length);
-    console.log('Applications data:', applications.map(app => ({
-      id: app.id,
-      firstName: app.firstName,
-      lastName: app.lastName,
-      status: app.status,
-      submittedAt: app.submittedAt
-    })));
+    console.log('Returning applications:', applications.length);
     return NextResponse.json(applications);
   } catch (error) {
-    console.error('=== ERROR FETCHING APPLICATIONS ===', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching applications:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
