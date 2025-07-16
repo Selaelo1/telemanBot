@@ -1,28 +1,22 @@
 import { Application } from '@/types/application';
 
 class ApplicationStore {
-  private static instance: ApplicationStore;
   private applications: Application[] = [];
+  private static instance: ApplicationStore;
 
   private constructor() {}
 
   public static getInstance(): ApplicationStore {
     if (!ApplicationStore.instance) {
       ApplicationStore.instance = new ApplicationStore();
+      console.log('Created new ApplicationStore instance');
     }
     return ApplicationStore.instance;
   }
 
   getAll(): Application[] {
-    console.log('=== GETTING ALL APPLICATIONS ===');
-    console.log('Current applications:', this.applications.map(app => ({
-      id: app.id,
-      firstName: app.firstName,
-      lastName: app.lastName,
-      status: app.status,
-      submittedAt: app.submittedAt
-    })));
-    return this.applications.sort((a, b) => 
+    console.log('Current applications count:', this.applications.length);
+    return [...this.applications].sort((a, b) => 
       new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
     );
   }
@@ -32,7 +26,6 @@ class ApplicationStore {
   }
 
   create(application: Omit<Application, 'id' | 'submittedAt' | 'status'>): Application {
-    console.log('=== CREATING APPLICATION ===');
     const newApplication: Application = {
       ...application,
       id: Date.now().toString(),
@@ -41,8 +34,17 @@ class ApplicationStore {
     };
 
     this.applications.push(newApplication);
-    console.log('Application created:', newApplication);
-    console.log('Total applications now:', this.applications.length);
+    console.log('Created application:', {
+      id: newApplication.id,
+      name: `${newApplication.firstName} ${newApplication.lastName}`,
+      status: newApplication.status
+    });
+    
+    // Persist to localStorage in development
+    if (process.env.NODE_ENV === 'development') {
+      localStorage.setItem('telemanbot-applications', JSON.stringify(this.applications));
+    }
+    
     return newApplication;
   }
 
@@ -57,7 +59,12 @@ class ApplicationStore {
     };
 
     this.applications[index] = updatedApp;
-    console.log('Application updated:', updatedApp);
+    
+    // Persist to localStorage in development
+    if (process.env.NODE_ENV === 'development') {
+      localStorage.setItem('telemanbot-applications', JSON.stringify(this.applications));
+    }
+    
     return updatedApp;
   }
 
@@ -76,6 +83,28 @@ class ApplicationStore {
   getDeclinedCount(): number {
     return this.applications.filter(app => app.status === 'declined').length;
   }
+
+  // Initialize from localStorage in development
+  initialize() {
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      const stored = localStorage.getItem('telemanbot-applications');
+      if (stored) {
+        try {
+          this.applications = JSON.parse(stored).map((app: any) => ({
+            ...app,
+            submittedAt: new Date(app.submittedAt),
+            processedAt: app.processedAt ? new Date(app.processedAt) : undefined
+          }));
+          console.log('Initialized store from localStorage:', this.applications.length);
+        } catch (e) {
+          console.error('Failed to parse stored applications:', e);
+        }
+      }
+    }
+  }
 }
 
-export const applicationStore = ApplicationStore.getInstance();
+const applicationStore = ApplicationStore.getInstance();
+applicationStore.initialize(); // Load from localStorage if available
+
+export { applicationStore };
