@@ -16,6 +16,9 @@ class ApplicationStore {
   }
 
   create(application: Omit<Application, 'id' | 'submittedAt' | 'status'>): Application {
+    console.log('=== CREATING APPLICATION ===');
+    console.log('Input data:', application);
+    
     const newApplication: Application = {
       ...application,
       id: Date.now().toString(),
@@ -23,7 +26,11 @@ class ApplicationStore {
       submittedAt: new Date(),
     };
 
+    console.log('New application object:', newApplication);
     this.applications.push(newApplication);
+    console.log('Total applications after push:', this.applications.length);
+    console.log('All applications:', this.applications.map(app => ({ id: app.id, firstName: app.firstName, status: app.status })));
+    
     return newApplication;
   }
 
