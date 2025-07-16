@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Application } from '@/types/application';
-import ApplicationsList from '@/components/ApplicationsList';
-import StatsCard from '@/components/StatsCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import { useState, useEffect } from "react";
+import { Application } from "@/types/application";
+import ApplicationsList from "@/components/ApplicationsList";
+import StatsCard from "@/components/StatsCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
   RefreshCw,
   Bot,
-  ExternalLink
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+  ExternalLink,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Stats {
   total: number;
@@ -27,18 +27,26 @@ interface Stats {
 
 export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
-  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, accepted: 0, declined: 0 });
+  const [stats, setStats] = useState<Stats>({
+    total: 0,
+    pending: 0,
+    accepted: 0,
+    declined: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchApplications = async () => {
     try {
-      const response = await fetch('/api/applications');
-      if (!response.ok) throw new Error('Failed to fetch applications');
+      console.log("=== DASHBOARD: FETCHING APPLICATIONS ===");
+      const response = await fetch("/api/applications");
+      console.log("Response status:", response.status);
+      if (!response.ok) throw new Error("Failed to fetch applications");
       const data = await response.json();
+      console.log("Received applications data:", data);
       setApplications(data);
     } catch (error) {
-      console.error('Error fetching applications:', error);
+      console.error("=== DASHBOARD: ERROR FETCHING APPLICATIONS ===", error);
       toast({
         title: "Error",
         description: "Failed to fetch applications",
@@ -49,31 +57,35 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/stats');
-      if (!response.ok) throw new Error('Failed to fetch stats');
+      const response = await fetch("/api/stats");
+      if (!response.ok) throw new Error("Failed to fetch stats");
       const data = await response.json();
       setStats(data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     }
   };
 
-  const handleApplicationUpdate = async (id: string, status: 'accepted' | 'declined', adminNotes?: string) => {
+  const handleApplicationUpdate = async (
+    id: string,
+    status: "accepted" | "declined",
+    adminNotes?: string
+  ) => {
     try {
       const response = await fetch(`/api/applications/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ status, adminNotes }),
       });
 
-      if (!response.ok) throw new Error('Failed to update application');
+      if (!response.ok) throw new Error("Failed to update application");
 
       const updatedApplication = await response.json();
-      
-      setApplications(apps => 
-        apps.map(app => app.id === id ? updatedApplication : app)
+
+      setApplications((apps) =>
+        apps.map((app) => (app.id === id ? updatedApplication : app))
       );
 
       await fetchStats();
@@ -83,7 +95,7 @@ export default function DashboardPage() {
         description: `Application ${status} and user notified`,
       });
     } catch (error) {
-      console.error('Error updating application:', error);
+      console.error("Error updating application:", error);
       toast({
         title: "Error",
         description: "Failed to update application",
@@ -127,8 +139,12 @@ export default function DashboardPage() {
               <Bot className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">TelemanBot Dashboard</h1>
-              <p className="text-muted-foreground">Manage and review applications</p>
+              <h1 className="text-3xl font-bold tracking-tight">
+                TelemanBot Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Manage and review applications
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -138,13 +154,15 @@ export default function DashboardPage() {
               onClick={handleRefresh}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open('/setup-webhook', '_blank')}
+              onClick={() => window.open("/setup-webhook", "_blank")}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               Setup Webhook
@@ -152,7 +170,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open('https://t.me/telemadeBot', '_blank')}
+              onClick={() => window.open("https://t.me/telemadeBot", "_blank")}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               View Bot
@@ -204,10 +222,10 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Bot URL:</strong> 
-                  <a 
-                    href="https://t.me/telemadeBot" 
-                    target="_blank" 
+                  <strong>Bot URL:</strong>
+                  <a
+                    href="https://t.me/telemadeBot"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="ml-1 text-blue-600 hover:underline"
                   >
@@ -215,8 +233,11 @@ export default function DashboardPage() {
                   </a>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  <strong>Status:</strong> 
-                  <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700">
+                  <strong>Status:</strong>
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 bg-green-100 text-green-700"
+                  >
                     Active
                   </Badge>
                 </p>
@@ -235,7 +256,7 @@ export default function DashboardPage() {
             <CardTitle>Applications</CardTitle>
           </CardHeader>
           <CardContent>
-            <ApplicationsList 
+            <ApplicationsList
               applications={applications}
               onUpdate={handleApplicationUpdate}
             />
