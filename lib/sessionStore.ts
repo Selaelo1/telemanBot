@@ -50,11 +50,11 @@ class SessionStore {
   // Clean up old sessions periodically
   cleanupOldSessions(): void {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    for (const [telegramId, session] of this.sessions.entries()) {
+    this.sessions.forEach((session, telegramId) => {
       if (session.lastActivity < oneHourAgo) {
         this.sessions.delete(telegramId);
       }
-    }
+    });
   }
 }
 
