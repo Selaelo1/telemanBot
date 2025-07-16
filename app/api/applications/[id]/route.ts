@@ -6,21 +6,20 @@ import {
   generateRejectionMessage 
 } from '@/lib/telegram';
 
+export const dynamic = 'force-dynamic'; // Disable caching
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params;
-    const body = await request.json();
-    const { status, adminNotes } = body;
+    const { status, adminNotes } = await request.json();
 
-    console.log(`=== UPDATING APPLICATION ${id} ===`);
-    console.log('Update data:', { status, adminNotes });
+    console.log(`Updating application ${id} to ${status}`);
 
     const application = applicationStore.getById(id);
     if (!application) {
-      console.error('Application not found:', id);
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
@@ -30,30 +29,19 @@ export async function PATCH(
     });
 
     if (!updatedApplication) {
-      console.error('Failed to update application:', id);
       return NextResponse.json({ error: 'Failed to update application' }, { status: 500 });
     }
 
-    console.log('Application updated successfully:', updatedApplication);
-
     // Send Telegram notification
     const chatId = parseInt(application.telegramId);
-    let message: string;
-
-    if (status === 'accepted') {
-      message = generateAcceptanceMessage(application.firstName, adminNotes);
-    } else if (status === 'declined') {
-      message = generateRejectionMessage(application.firstName, adminNotes);
-    } else {
-      return NextResponse.json(updatedApplication);
-    }
-
     try {
-      console.log('Sending Telegram notification to:', chatId);
+      const message = status === 'accepted'
+        ? generateAcceptanceMessage(application.firstName, adminNotes)
+        : generateRejectionMessage(application.firstName, adminNotes);
+      
       await sendTelegramMessage(chatId, message);
-      console.log('Telegram notification sent successfully');
     } catch (telegramError) {
-      console.error('Error sending Telegram notification:', telegramError);
+      console.error('Telegram notification failed:', telegramError);
     }
 
     return NextResponse.json(updatedApplication);
