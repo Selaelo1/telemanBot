@@ -37,74 +37,48 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const fetchApplications = async () => {
+  const fetchData = async () => {
     try {
-      console.log("=== DASHBOARD: FETCHING APPLICATIONS ===");
-      const startTime = performance.now();
+      console.log("Fetching data...");
+      const [appsResponse, statsResponse] = await Promise.all([
+        fetch("/api/applications?t=" + Date.now()),
+        fetch("/api/stats?t=" + Date.now()),
+      ]);
 
-      const response = await fetch("/api/applications", {
-        cache: "no-store", // Ensure fresh data
-      });
-
-      const endTime = performance.now();
-      console.log(`Fetch took ${(endTime - startTime).toFixed(2)}ms`);
-      console.log("Response status:", response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!appsResponse.ok || !statsResponse.ok) {
+        throw new Error("Failed to fetch data");
       }
 
-      const data = await response.json();
-      console.log("Received applications:", data.length);
+      const [appsData, statsData] = await Promise.all([
+        appsResponse.json(),
+        statsResponse.json(),
+      ]);
 
-      if (data.length > 0) {
-        console.log("Sample application:", {
-          id: data[0].id,
-          firstName: data[0].firstName,
-          status: data[0].status,
-          submittedAt: data[0].submittedAt,
-        });
-      }
+      console.log("Fetched applications:", appsData.length);
+      console.log("Fetched stats:", statsData);
 
-      setApplications(data);
-      return data;
+      setApplications(appsData);
+      setStats(statsData);
     } catch (error) {
-      console.error("=== DASHBOARD: ERROR FETCHING APPLICATIONS ===", error);
+      console.error("Fetch error:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch applications",
+        description: "Failed to load data",
         variant: "destructive",
       });
-      throw error;
     }
   };
 
-  const fetchStats = async () => {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
-      console.log("=== DASHBOARD: FETCHING STATS ===");
-      const response = await fetch("/api/stats", {
-        cache: "no-store", // Ensure fresh data
-      });
-
-      console.log("Stats response status:", response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Received stats:", data);
-
-      setStats(data);
-      return data;
-    } catch (error) {
-      console.error("Error fetching stats:", error);
+      await fetchData();
       toast({
-        title: "Error",
-        description: "Failed to fetch statistics",
-        variant: "destructive",
+        title: "Success",
+        description: "Data refreshed",
       });
-      throw error;
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -114,7 +88,6 @@ export default function DashboardPage() {
     adminNotes?: string
   ) => {
     try {
-      console.log(`=== UPDATING APPLICATION ${id} TO ${status} ===`);
       const response = await fetch(`/api/applications/${id}`, {
         method: "PATCH",
         headers: {
@@ -123,58 +96,28 @@ export default function DashboardPage() {
         body: JSON.stringify({ status, adminNotes }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to update application");
-      }
+      if (!response.ok) throw new Error("Update failed");
 
-      const updatedApplication = await response.json();
-      console.log("Updated application:", updatedApplication);
-
-      setApplications((apps) =>
-        apps.map((app) => (app.id === id ? updatedApplication : app))
-      );
-
-      // Refresh stats after update
-      await fetchStats();
-
+      await fetchData();
       toast({
         title: "Success",
-        description: `Application ${status} and user notified`,
+        description: `Application ${status}`,
       });
     } catch (error) {
-      console.error("Error updating application:", error);
+      console.error("Update error:", error);
       toast({
         title: "Error",
-        description: "Failed to update application",
+        description: "Update failed",
         variant: "destructive",
       });
     }
   };
 
-  const handleRefresh = async () => {
-    try {
-      setIsRefreshing(true);
-      console.log("=== MANUAL REFRESH INITIATED ===");
-      await Promise.all([fetchApplications(), fetchStats()]);
-      toast({
-        title: "Success",
-        description: "Data refreshed successfully",
-      });
-    } catch (error) {
-      console.error("Error during refresh:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        console.log("=== INITIAL DATA LOAD ===");
-        await Promise.all([fetchApplications(), fetchStats()]);
-      } catch (error) {
-        console.error("Error during initial load:", error);
+        await fetchData();
       } finally {
         setIsLoading(false);
       }
