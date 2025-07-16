@@ -15,22 +15,28 @@ export async function PATCH(
     const body = await request.json();
     const { status, adminNotes } = body;
 
+    console.log(`=== UPDATING APPLICATION ${id} ===`);
+    console.log('Update data:', { status, adminNotes });
+
     const application = applicationStore.getById(id);
     if (!application) {
+      console.error('Application not found:', id);
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    // Update application
     const updatedApplication = applicationStore.update(id, {
       status,
       adminNotes,
     });
 
     if (!updatedApplication) {
+      console.error('Failed to update application:', id);
       return NextResponse.json({ error: 'Failed to update application' }, { status: 500 });
     }
 
-    // Send notification to user
+    console.log('Application updated successfully:', updatedApplication);
+
+    // Send Telegram notification
     const chatId = parseInt(application.telegramId);
     let message: string;
 
@@ -43,10 +49,11 @@ export async function PATCH(
     }
 
     try {
+      console.log('Sending Telegram notification to:', chatId);
       await sendTelegramMessage(chatId, message);
+      console.log('Telegram notification sent successfully');
     } catch (telegramError) {
       console.error('Error sending Telegram notification:', telegramError);
-      // Don't fail the request if notification fails
     }
 
     return NextResponse.json(updatedApplication);
